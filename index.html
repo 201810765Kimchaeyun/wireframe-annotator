@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wireframe Annotator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#0f0f11;--surface:#17171a;--surface2:#1e1e22;--border:#2a2a30;
+  --accent:#6ee7b7;--accent2:#818cf8;--text:#e4e4e7;--text-muted:#71717a;
+  --dot-color:#f43f5e;--dot-active:#fb923c;--dot-size:26px;
+  --desc-w:360px;--pages-w:200px;--radius:12px;
+}
+
+body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+/* Header */
+header{display:flex;align-items:center;gap:10px;padding:11px 20px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;z-index:10}
+.logo{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);white-space:nowrap}
+.logo span{color:var(--text-muted);font-weight:400}
+.header-sep{flex:1}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;font-family:inherit}
+.btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--surface2);color:var(--text)}
+.btn-primary{background:var(--accent);color:#0f0f11}
+.btn-primary:hover{opacity:.88}
+.btn-danger{background:transparent;color:#f43f5e;border:1px solid #3f1219}
+.btn-danger:hover{background:#1c0a0e}
+input[type=file]{display:none}
+
+/* add-mode */
+.mode-badge{display:none;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#052e16;color:var(--accent);border:1px solid #166534;font-size:10px;font-weight:700;animation:blink 1.4s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+body.add-mode .mode-badge{display:flex}
+body.add-mode #image-wrapper{outline:2px solid var(--accent);outline-offset:4px;border-radius:var(--radius)}
+
+/* Layout */
+main{display:flex;flex:1;overflow:hidden}
+
+/* Pages sidebar */
+#pages-sidebar{width:var(--pages-w);flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--surface)}
+.sidebar-head{padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-shrink:0}
+.sidebar-head .btn{padding:3px 8px;font-size:11px;margin-left:auto}
+#pages-list{flex:1;overflow-y:auto;padding:6px}
+#pages-list::-webkit-scrollbar{width:3px}
+#pages-list::-webkit-scrollbar-thumb{background:var(--border)}
+
+.page-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .12s;margin-bottom:2px;border:1px solid transparent}
+.page-item:hover{background:var(--surface2)}
+.page-item.active{background:var(--surface2);border-color:var(--border)}
+.page-thumb{width:34px;height:24px;border-radius:4px;background:var(--bg);border:1px solid var(--border);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--text-muted)}
+.page-thumb img{width:100%;height:100%;object-fit:cover}
+.page-info{flex:1;min-width:0}
+.page-name{font-size:12px;font-weight:500;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;line-height:1.4}
+.page-item.active .page-name{color:var(--text)}
+.page-name-input{font-size:12px;font-weight:500;background:transparent;border:none;outline:1px solid var(--accent2);border-radius:3px;color:var(--text);width:100%;padding:1px 3px;font-family:inherit}
+.page-ann-count{font-size:10px;color:var(--text-muted);font-family:'DM Mono',monospace;line-height:1.4}
+.page-del{opacity:0;font-size:10px;color:var(--text-muted);cursor:pointer;padding:2px 5px;border-radius:4px;transition:all .12s;background:transparent;border:none;flex-shrink:0;font-family:inherit}
+.page-item:hover .page-del{opacity:1}
+.page-del:hover{background:#3f1219;color:#f43f5e}
+
+/* Canvas */
+#canvas-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border)}
+.panel-header{padding:10px 18px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.count-pill{font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);background:#052e16;padding:2px 8px;border-radius:20px;border:1px solid #166534}
+
+#drop-zone{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;transition:background .2s;position:relative;overflow:auto}
+#drop-zone.drag-over{background:rgba(110,231,183,.04)}
+#drop-zone.has-image{align-items:flex-start;justify-content:flex-start;padding:20px;cursor:default}
+
+.drop-hint{display:flex;flex-direction:column;align-items:center;gap:12px}
+.drop-icon{width:58px;height:58px;border-radius:14px;border:1.5px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--surface2)}
+.drop-hint h2{font-size:14px;font-weight:600}
+.drop-hint p{font-size:12px;color:var(--text-muted);text-align:center;line-height:1.6}
+
+#image-wrapper{position:relative;display:inline-block;user-select:none}
+#image-wrapper.add-cursor{cursor:crosshair}
+#wireframe-img{display:block;max-width:100%;border-radius:var(--radius);border:1px solid var(--border);pointer-events:none}
+
+.ann-dot{position:absolute;width:var(--dot-size);height:var(--dot-size);border-radius:50%;background:var(--dot-color);border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;cursor:pointer;transform:translate(-50%,-50%);transition:transform .15s,background .15s,box-shadow .15s;z-index:5;box-shadow:0 2px 8px rgba(244,63,94,.4);font-family:'DM Mono',monospace}
+.ann-dot:hover,.ann-dot.active{transform:translate(-50%,-50%) scale(1.2);background:var(--dot-active);box-shadow:0 4px 16px rgba(251,146,60,.5)}
+.ann-dot::after{content:'';position:absolute;width:100%;height:100%;border-radius:50%;border:2px solid var(--dot-color);animation:pulse 2s ease-out infinite;opacity:0}
+@keyframes pulse{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.2);opacity:0}}
+
+/* Desc panel */
+#desc-panel{width:var(--desc-w);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;background:var(--surface)}
+#desc-content{flex:1;overflow-y:auto;padding:18px}
+#desc-content::-webkit-scrollbar{width:4px}
+#desc-content::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.empty-state{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text-muted);text-align:center;padding:40px}
+.empty-state .e-icon{font-size:30px;opacity:.35}
+.empty-state p{font-size:12px;line-height:1.7}
+.desc-card{animation:fadeUp .18s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.desc-num-badge{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--dot-active);color:#fff;font-size:11px;font-weight:700;font-family:'DM Mono',monospace;margin-bottom:12px}
+.desc-divider{height:1px;background:var(--border);margin:12px 0}
+.field-lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px}
+.field-input,.field-ta{font-size:13px;line-height:1.7;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 11px;width:100%;font-family:inherit;transition:border-color .15s;outline:none}
+.field-input{height:36px}
+.field-ta{resize:vertical;min-height:68px}
+.field-input:focus,.field-ta:focus{border-color:var(--accent2)}
+.field-section{margin-bottom:13px}
+.desc-actions{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+
+/* Export modal */
+.modal-back{display:none;position:fixed;inset:0;background:rgba(15,15,17,.85);backdrop-filter:blur(4px);z-index:150;align-items:center;justify-content:center}
+.modal-back.show{display:flex}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);width:540px;max-width:92vw;padding:24px}
+.modal-box h3{font-size:15px;font-weight:700;margin-bottom:6px}
+.modal-desc{font-size:12px;color:var(--text-muted);margin-bottom:16px;line-height:1.6}
+.modal-tabs{display:flex;gap:6px;margin-bottom:16px}
+.modal-tab{padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-muted);transition:all .12s;font-family:inherit}
+.modal-tab.active{background:var(--accent);color:#0f0f11;border-color:transparent}
+.modal-page-list{display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;margin-bottom:16px}
+.modal-page-row{display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .12s}
+.modal-page-row:hover{border-color:var(--accent2)}
+.modal-page-row.selected{border-color:var(--accent2);background:#12122a}
+.mpg-thumb{width:36px;height:26px;border-radius:4px;border:1px solid var(--border);overflow:hidden;flex-shrink:0}
+.mpg-thumb img{width:100%;height:100%;object-fit:cover}
+.mpg-name{flex:1;font-size:13px;font-weight:500}
+.mpg-count{font-size:11px;font-family:'DM Mono',monospace;color:var(--text-muted)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end}
+.export-all-info{padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:16px}
+
+/* Toast */
+#toast{position:fixed;bottom:20px;right:20px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 15px;border-radius:9px;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);opacity:0;transform:translateY(6px);transition:all .22s;pointer-events:none;z-index:200}
+#toast.show{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- Export Modal -->
+<div class="modal-back" id="export-modal">
+  <div class="modal-box">
+    <h3>📤 HTML로 내보내기</h3>
+    <p class="modal-desc">이미지와 주석이 포함된 인터랙티브 HTML 기획서로 내보냅니다.</p>
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tab-all" onclick="switchExportTab('all')">🗂 전체 페이지</button>
+      <button class="modal-tab" id="tab-single" onclick="switchExportTab('single')">📄 페이지 선택</button>
+    </div>
+    <!-- All pages info -->
+    <div class="export-all-info" id="export-all-info">
+      모든 페이지를 하나의 HTML 파일로 내보냅니다.<br>상단 탭 메뉴로 페이지를 전환할 수 있습니다.
+    </div>
+    <!-- Single page list -->
+    <div class="modal-page-list" id="export-page-list" style="display:none"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeExportModal()">취소</button>
+      <button class="btn btn-primary" onclick="doExport()">⬇ 다운로드</button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="logo">Wireframe <span>Annotator</span></div>
+  <div class="mode-badge">✦ 점 추가 — 이미지 클릭</div>
+  <div class="header-sep"></div>
+  <button class="btn btn-ghost" id="btn-add-mode" style="display:none" onclick="toggleAddMode()">＋ 점 추가</button>
+  <button class="btn btn-ghost" id="btn-clear" style="display:none" onclick="clearPageDots()">↺ 초기화</button>
+  <button class="btn btn-primary" id="btn-export" style="display:none" onclick="openExportModal()">⬇ HTML 내보내기</button>
+  <input type="file" id="file-input" accept="image/*" onchange="handleFile(this.files[0])">
+  <button class="btn btn-ghost" onclick="document.getElementById('file-input').click()">📁 이미지 추가</button>
+</header>
+
+<main>
+  <!-- Pages sidebar -->
+  <div id="pages-sidebar">
+    <div class="sidebar-head">
+      Pages
+      <button class="btn btn-ghost" onclick="addEmptyPage()" title="빈 페이지 추가">＋</button>
+    </div>
+    <div id="pages-list"></div>
+  </div>
+
+  <!-- Canvas -->
+  <div id="canvas-panel">
+    <div class="panel-header">
+      <span id="canvas-title">와이어프레임</span>
+      <span class="count-pill" id="dot-count" style="display:none"></span>
+    </div>
+    <div id="drop-zone"
+      ondragover="onDragOver(event)"
+      ondragleave="onDragLeave(event)"
+      ondrop="onDrop(event)">
+      <div class="drop-hint" id="drop-hint">
+        <div class="drop-icon">🖼</div>
+        <h2>이미지를 업로드하세요</h2>
+        <p>드래그 & 드롭 또는 상단 버튼으로 업로드<br>페이지별로 와이어프레임을 관리합니다</p>
+        <button class="btn btn-primary" style="margin-top:6px" onclick="document.getElementById('file-input').click()">이미지 선택</button>
+      </div>
+      <div id="image-wrapper" style="display:none" onclick="onWrapperClick(event)">
+        <img id="wireframe-img" src="" alt="wireframe">
+      </div>
+    </div>
+  </div>
+
+  <!-- Desc panel -->
+  <div id="desc-panel">
+    <div class="panel-header">설명</div>
+    <div id="desc-content">
+      <div class="empty-state" id="empty-state">
+        <div class="e-icon">💬</div>
+        <p>번호 dot을 클릭하면<br>여기에 설명이 표시됩니다</p>
+      </div>
+      <div id="desc-cards"></div>
+    </div>
+    <div class="desc-actions" id="desc-actions" style="display:none">
+      <button class="btn btn-danger" style="flex:1" onclick="deleteDot()">🗑 삭제</button>
+      <button class="btn btn-primary" style="flex:1" onclick="saveDesc()">저장</button>
+    </div>
+  </div>
+</main>
+
+<script>
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+// Page: {id, name, imageSrc, imageBase64, imageMediaType, annotations:[]}
+// Annotation: {id, num, x_pct, y_pct, label, description, interaction, status}
+let pages = [];
+let currentPageId = null;
+let activeAnnotId = null;
+let addMode = false;
+let exportTab = 'all';
+let selectedExportPageId = null;
+
+// ─────────────────────────────────────────────
+// PAGE MANAGEMENT
+// ─────────────────────────────────────────────
+function makePage(name) {
+  return {
+    id: 'pg_' + Date.now() + '_' + Math.random().toString(36).slice(2,5),
+    name, imageSrc: null, imageBase64: null, imageMediaType: 'image/png',
+    annotations: []
+  };
+}
+function currentPage() { return pages.find(p => p.id === currentPageId) || null; }
+
+function addEmptyPage() {
+  saveDescSilent();
+  const pg = makePage('Page ' + (pages.length + 1));
+  pages.push(pg);
+  currentPageId = pg.id;
+  activeAnnotId = null;
+  renderPagesList();
+  loadCurrentPage();
+  clearDescPanel();
+}
+
+function addPageWithImage(src, b64, mediaType) {
+  saveDescSilent();
+  const pg = currentPage();
+  // If current page has no image yet, assign to it
+  if (pg && !pg.imageSrc) {
+    pg.imageSrc = src; pg.imageBase64 = b64; pg.imageMediaType = mediaType;
+    renderPagesList();
+    loadCurrentPage();
+  } else {
+    const newPg = makePage('Page ' + (pages.length + 1));
+    newPg.imageSrc = src; newPg.imageBase64 = b64; newPg.imageMediaType = mediaType;
+    pages.push(newPg);
+    currentPageId = newPg.id;
+    activeAnnotId = null;
+    renderPagesList();
+    loadCurrentPage();
+    clearDescPanel();
+  }
+}
+
+function switchPage(id) {
+  if (id === currentPageId) return;
+  if (addMode) toggleAddMode();
+  saveDescSilent();
+  currentPageId = id;
+  activeAnnotId = null;
+  renderPagesList();
+  loadCurrentPage();
+  clearDescPanel();
+}
+
+function deletePage(id, e) {
+  e.stopPropagation();
+  if (pages.length <= 1) { toast('마지막 페이지는 삭제할 수 없습니다'); return; }
+  if (!confirm('이 페이지를 삭제할까요?')) return;
+  const idx = pages.findIndex(p => p.id === id);
+  pages.splice(idx, 1);
+  if (currentPageId === id) {
+    currentPageId = pages[Math.min(idx, pages.length - 1)].id;
+    activeAnnotId = null;
+    clearDescPanel();
+  }
+  renderPagesList();
+  loadCurrentPage();
+}
+
+function startRenamePage(id, e) {
+  e.stopPropagation();
+  const item = document.querySelector(`.page-item[data-id="${id}"]`);
+  if (!item) return;
+  const nameEl = item.querySelector('.page-name');
+  const pg = pages.find(p => p.id === id);
+  const input = document.createElement('input');
+  input.className = 'page-name-input';
+  input.value = pg.name;
+  nameEl.replaceWith(input);
+  input.focus(); input.select();
+  const finish = () => {
+    pg.name = input.value.trim() || pg.name;
+    renderPagesList();
+    if (id === currentPageId) document.getElementById('canvas-title').textContent = pg.name;
+  };
+  input.onblur = finish;
+  input.onkeydown = ev => {
+    if (ev.key === 'Enter') input.blur();
+    if (ev.key === 'Escape') { input.value = pg.name; input.blur(); }
+  };
+}
+
+function renderPagesList() {
+  const list = document.getElementById('pages-list');
+  if (!pages.length) { list.innerHTML = ''; return; }
+  list.innerHTML = pages.map(pg => {
+    const active = pg.id === currentPageId;
+    const thumb = pg.imageSrc
+      ? `<img src="${pg.imageSrc}" alt="">`
+      : `<span style="font-size:14px">🖼</span>`;
+    const annLabel = pg.annotations.length > 0 ? `${pg.annotations.length}개 주석` : '주석 없음';
+    return `
+    <div class="page-item${active?' active':''}" data-id="${pg.id}" onclick="switchPage('${pg.id}')">
+      <div class="page-thumb">${thumb}</div>
+      <div class="page-info">
+        <span class="page-name" ondblclick="startRenamePage('${pg.id}',event)">${escHtml(pg.name)}</span>
+        <span class="page-ann-count">${annLabel}</span>
+      </div>
+      <button class="page-del" onclick="deletePage('${pg.id}',event)" title="삭제">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function loadCurrentPage() {
+  const pg = currentPage();
+  const wrapper = document.getElementById('image-wrapper');
+  const dropHint = document.getElementById('drop-hint');
+  const dropZone = document.getElementById('drop-zone');
+  const img = document.getElementById('wireframe-img');
+  const hasImage = pg && pg.imageSrc;
+
+  document.getElementById('canvas-title').textContent = pg ? pg.name : '와이어프레임';
+  document.getElementById('btn-add-mode').style.display = hasImage ? '' : 'none';
+  document.getElementById('btn-clear').style.display = hasImage ? '' : 'none';
+  document.getElementById('btn-export').style.display = pages.some(p => p.imageSrc) ? '' : 'none';
+
+  if (hasImage) {
+    img.src = pg.imageSrc;
+    wrapper.style.display = 'inline-block';
+    dropHint.style.display = 'none';
+    dropZone.classList.add('has-image');
+    img.onload = () => renderDots();
+    if (img.complete && img.naturalWidth) renderDots();
+  } else {
+    wrapper.style.display = 'none';
+    dropHint.style.display = 'flex';
+    dropZone.classList.remove('has-image');
+    document.getElementById('dot-count').style.display = 'none';
+  }
+  updateDotCount();
+}
+
+// ─────────────────────────────────────────────
+// FILE UPLOAD
+// ─────────────────────────────────────────────
+function onDragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('drag-over'); }
+function onDragLeave() { document.getElementById('drop-zone').classList.remove('drag-over'); }
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) handleFile(file);
+}
+
+function handleFile(file) {
+  if (!file) return;
+  const mediaType = file.type || 'image/png';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const src = ev.target.result;
+    const b64 = src.split(',')[1];
+    addPageWithImage(src, b64, mediaType);
+  };
+  reader.readAsDataURL(file);
+  document.getElementById('file-input').value = '';
+}
+
+// ─────────────────────────────────────────────
+// ADD MODE
+// ─────────────────────────────────────────────
+function toggleAddMode() {
+  addMode = !addMode;
+  document.body.classList.toggle('add-mode', addMode);
+  document.getElementById('image-wrapper').classList.toggle('add-cursor', addMode);
+  const btn = document.getElementById('btn-add-mode');
+  btn.textContent = addMode ? '✓ 완료' : '＋ 점 추가';
+  btn.className = addMode ? 'btn btn-primary' : 'btn btn-ghost';
+}
+
+function onWrapperClick(e) {
+  if (!addMode) return;
+  const img = document.getElementById('wireframe-img');
+  const rect = img.getBoundingClientRect();
+  const x_pct = (e.clientX - rect.left) / rect.width;
+  const y_pct = (e.clientY - rect.top) / rect.height;
+  if (x_pct < 0 || x_pct > 1 || y_pct < 0 || y_pct > 1) return;
+  const pg = currentPage();
+  if (!pg) return;
+  const id = 'dot_' + Date.now();
+  const num = pg.annotations.length + 1;
+  pg.annotations.push({ id, num, x_pct, y_pct, label: `컴포넌트 ${num}`, description: '', interaction: '', status: '' });
+  renderDots();
+  renderPagesList();
+  updateDotCount();
+  selectDot(id);
+}
+
+// ─────────────────────────────────────────────
+// DOTS
+// ─────────────────────────────────────────────
+function renderDots() {
+  const wrapper = document.getElementById('image-wrapper');
+  wrapper.querySelectorAll('.ann-dot').forEach(d => d.remove());
+  const pg = currentPage();
+  if (!pg) return;
+  const img = document.getElementById('wireframe-img');
+  const w = img.offsetWidth, h = img.offsetHeight;
+  pg.annotations.forEach(ann => {
+    const dot = document.createElement('div');
+    dot.className = 'ann-dot' + (ann.id === activeAnnotId ? ' active' : '');
+    dot.textContent = ann.num;
+    dot.style.left = (ann.x_pct * w) + 'px';
+    dot.style.top  = (ann.y_pct * h) + 'px';
+    dot.dataset.id = ann.id;
+    dot.onclick = ev => { ev.stopPropagation(); selectDot(ann.id); };
+    wrapper.appendChild(dot);
+  });
+}
+
+function selectDot(id) {
+  if (addMode) toggleAddMode();
+  activeAnnotId = id;
+  renderDots();
+  const ann = currentPage()?.annotations.find(a => a.id === id);
+  if (ann) renderDescPanel(ann);
+}
+
+function updateDotCount() {
+  const pg = currentPage();
+  const el = document.getElementById('dot-count');
+  if (pg && pg.annotations.length > 0) {
+    el.textContent = `${pg.annotations.length}개`;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+window.addEventListener('resize', () => { if (currentPage()?.imageSrc) renderDots(); });
+
+// ─────────────────────────────────────────────
+// DESCRIPTION PANEL
+// ─────────────────────────────────────────────
+function renderDescPanel(ann) {
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('desc-actions').style.display = '';
+  document.getElementById('desc-cards').innerHTML = `
+    <div class="desc-card">
+      <div class="desc-num-badge">${ann.num}</div>
+      <div class="field-section">
+        <div class="field-lbl">이름</div>
+        <input class="field-input" id="f-label" value="${escHtml(ann.label)}" placeholder="컴포넌트 이름">
+      </div>
+      <div class="desc-divider"></div>
+      <div class="field-section">
+        <div class="field-lbl">설명</div>
+        <textarea class="field-ta" id="f-desc" placeholder="상세 설명...">${escHtml(ann.description)}</textarea>
+      </div>
+      <div class="field-section">
+        <div class="field-lbl">인터랙션</div>
+        <textarea class="field-ta" id="f-interaction" style="min-height:56px" placeholder="클릭/호버 동작...">${escHtml(ann.interaction||'')}</textarea>
+      </div>
+      <div class="field-section">
+        <div class="field-lbl">상태 / 조건</div>
+        <textarea class="field-ta" id="f-status" style="min-height:56px" placeholder="활성/비활성 조건...">${escHtml(ann.status||'')}</textarea>
+      </div>
+    </div>`;
+}
+
+function clearDescPanel() {
+  document.getElementById('empty-state').style.display = '';
+  document.getElementById('desc-cards').innerHTML = '';
+  document.getElementById('desc-actions').style.display = 'none';
+  activeAnnotId = null;
+}
+
+function saveDescSilent() {
+  if (!activeAnnotId) return;
+  const ann = currentPage()?.annotations.find(a => a.id === activeAnnotId);
+  if (!ann) return;
+  const lbl = document.getElementById('f-label');
+  const dsc = document.getElementById('f-desc');
+  const itr = document.getElementById('f-interaction');
+  const sts = document.getElementById('f-status');
+  if (lbl) ann.label = lbl.value;
+  if (dsc) ann.description = dsc.value;
+  if (itr) ann.interaction = itr.value;
+  if (sts) ann.status = sts.value;
+}
+
+function saveDesc() {
+  saveDescSilent();
+  renderPagesList();
+  renderDots();
+  toast('저장되었습니다');
+}
+
+function deleteDot() {
+  if (!activeAnnotId) return;
+  const pg = currentPage();
+  if (!pg) return;
+  pg.annotations = pg.annotations.filter(a => a.id !== activeAnnotId);
+  pg.annotations.forEach((a, i) => a.num = i + 1);
+  clearDescPanel();
+  renderDots();
+  renderPagesList();
+  updateDotCount();
+  toast('삭제되었습니다');
+}
+
+function clearPageDots() {
+  const pg = currentPage();
+  if (!pg || !pg.annotations.length) return;
+  if (!confirm('현재 페이지의 모든 주석을 삭제할까요?')) return;
+  pg.annotations = [];
+  clearDescPanel();
+  renderDots();
+  renderPagesList();
+  updateDotCount();
+}
+
+// ─────────────────────────────────────────────
+// EXPORT
+// ─────────────────────────────────────────────
+function openExportModal() {
+  saveDescSilent();
+  exportTab = 'all';
+  selectedExportPageId = null;
+  document.getElementById('tab-all').classList.add('active');
+  document.getElementById('tab-single').classList.remove('active');
+  document.getElementById('export-all-info').style.display = '';
+  document.getElementById('export-page-list').style.display = 'none';
+  document.getElementById('export-modal').classList.add('show');
+}
+function closeExportModal() {
+  document.getElementById('export-modal').classList.remove('show');
+}
+
+function switchExportTab(tab) {
+  exportTab = tab;
+  document.getElementById('tab-all').classList.toggle('active', tab === 'all');
+  document.getElementById('tab-single').classList.toggle('active', tab === 'single');
+  document.getElementById('export-all-info').style.display = tab === 'all' ? '' : 'none';
+  const listEl = document.getElementById('export-page-list');
+  if (tab === 'single') {
+    listEl.style.display = '';
+    listEl.innerHTML = pages.filter(pg => pg.imageSrc).map(pg => `
+      <div class="modal-page-row${selectedExportPageId===pg.id?' selected':''}" onclick="selectExportPage('${pg.id}',this)">
+        <div class="mpg-thumb">${pg.imageSrc?`<img src="${pg.imageSrc}" alt="">`:'🖼'}</div>
+        <span class="mpg-name">${escHtml(pg.name)}</span>
+        <span class="mpg-count">${pg.annotations.length}개 주석</span>
+      </div>`).join('') || '<div style="padding:20px;text-align:center;font-size:12px;color:var(--text-muted)">이미지가 있는 페이지가 없습니다</div>';
+  } else {
+    listEl.style.display = 'none';
+  }
+}
+
+function selectExportPage(id, el) {
+  selectedExportPageId = id;
+  document.querySelectorAll('.modal-page-row').forEach(r => r.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function doExport() {
+  if (exportTab === 'all') {
+    const valid = pages.filter(pg => pg.imageSrc);
+    if (!valid.length) { toast('내보낼 이미지가 있는 페이지가 없습니다'); return; }
+    downloadHTML(buildAllPagesHTML(valid), 'wireframe-기획서.html');
+    closeExportModal();
+  } else {
+    if (!selectedExportPageId) { toast('페이지를 선택해주세요'); return; }
+    const pg = pages.find(p => p.id === selectedExportPageId);
+    if (!pg?.imageSrc) { toast('이미지가 없는 페이지입니다'); return; }
+    const fname = 'wireframe-' + pg.name.replace(/[^a-zA-Z0-9가-힣]/g,'_') + '.html';
+    downloadHTML(buildSinglePageHTML(pg), fname);
+    closeExportModal();
+  }
+}
+
+function downloadHTML(html, filename) {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast(`✓ ${filename} 다운로드`);
+}
+
+// ─── Exported HTML shared styles ─────────────────────────────
+function exportCSS(multiPage) {
+  return `<style>
+@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0f0f11;--surface:#17171a;--surface2:#1e1e22;--border:#2a2a30;--accent:#6ee7b7;--accent2:#818cf8;--text:#e4e4e7;--text-muted:#71717a;--dot-color:#f43f5e;--dot-active:#fb923c;--dot-size:26px;--desc-w:360px;--radius:12px}
+body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.logo{font-size:13px;font-weight:700;color:var(--accent);letter-spacing:.06em;text-transform:uppercase}
+.badge{font-size:11px;font-family:'DM Mono',monospace;padding:3px 10px;border-radius:20px;background:var(--surface2);color:var(--text-muted);border:1px solid var(--border);margin-left:auto;flex-shrink:0}
+${multiPage ? `
+.page-tabs{display:flex;gap:6px;flex:1;overflow-x:auto;padding:0 4px}
+.page-tabs::-webkit-scrollbar{height:0}
+.page-tab{padding:5px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-muted);white-space:nowrap;transition:all .12s;font-family:inherit}
+.page-tab:hover{background:var(--surface2);color:var(--text)}
+.page-tab.active{background:var(--accent);color:#0f0f11;border-color:transparent}` : ''}
+main{display:flex;flex:1;overflow:hidden}
+#canvas-wrap{flex:1;overflow:auto;padding:20px;display:flex;align-items:flex-start;justify-content:flex-start}
+#canvas-wrap::-webkit-scrollbar{width:6px;height:6px}
+#canvas-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+#image-wrapper{position:relative;display:inline-block;user-select:none}
+#wf-img{display:block;max-width:100%;border-radius:var(--radius);border:1px solid var(--border);pointer-events:none}
+.ann-dot{position:absolute;width:var(--dot-size);height:var(--dot-size);border-radius:50%;background:var(--dot-color);border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;cursor:pointer;transform:translate(-50%,-50%);transition:transform .15s,background .15s,box-shadow .15s;z-index:5;box-shadow:0 2px 8px rgba(244,63,94,.4);font-family:'DM Mono',monospace}
+.ann-dot:hover,.ann-dot.active{transform:translate(-50%,-50%) scale(1.2);background:var(--dot-active);box-shadow:0 4px 16px rgba(251,146,60,.5)}
+.ann-dot::after{content:'';position:absolute;width:100%;height:100%;border-radius:50%;border:2px solid var(--dot-color);animation:pulse 2s ease-out infinite;opacity:0}
+@keyframes pulse{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.2);opacity:0}}
+#desc-panel{width:var(--desc-w);flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.desc-hdr{padding:10px 18px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border);flex-shrink:0}
+#desc-body{flex:1;overflow-y:auto;padding:18px}
+#desc-body::-webkit-scrollbar{width:4px}
+#desc-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.empty-hint{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text-muted);text-align:center}
+.empty-hint .ei{font-size:28px;opacity:.35}
+.empty-hint p{font-size:12px;line-height:1.7}
+#desc-card{animation:fadeUp .18s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.d-num{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--dot-active);color:#fff;font-size:11px;font-weight:700;font-family:'DM Mono',monospace;margin-bottom:10px}
+.d-title{font-size:16px;font-weight:700;margin-bottom:4px;color:var(--text)}
+.d-div{height:1px;background:var(--border);margin:12px 0}
+.d-sec{margin-bottom:13px}
+.d-lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px}
+.d-val{font-size:13px;line-height:1.7;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px}
+</style>`;
+}
+
+// ─── Single page export ───────────────────────────────────────
+function buildSinglePageHTML(pg) {
+  const annsJSON = JSON.stringify(pg.annotations);
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>${escHtmlExport(pg.name)}</title>
+${exportCSS(false)}
+</head>
+<body>
+<header>
+  <div class="logo">📋 ${escHtmlExport(pg.name)}</div>
+  <div class="badge" id="ann-badge">${pg.annotations.length}개 주석</div>
+</header>
+<main>
+  <div id="canvas-wrap">
+    <div id="image-wrapper">
+      <img id="wf-img" src="${pg.imageSrc}" alt="wireframe">
+    </div>
+  </div>
+  <div id="desc-panel">
+    <div class="desc-hdr">설명</div>
+    <div id="desc-body">
+      <div class="empty-hint" id="empty-hint"><div class="ei">🖱</div><p>번호를 클릭하면<br>설명이 표시됩니다</p></div>
+      <div id="desc-card" style="display:none"></div>
+    </div>
+  </div>
+</main>
+<script>
+var annotations=${annsJSON};
+var activeId=null;
+function init(){var i=document.getElementById('wf-img');if(i.complete&&i.naturalWidth)renderDots();else i.onload=renderDots;}
+function renderDots(){
+  var w=document.getElementById('image-wrapper');
+  w.querySelectorAll('.ann-dot').forEach(function(d){d.remove()});
+  var i=document.getElementById('wf-img');
+  var iw=i.offsetWidth,ih=i.offsetHeight;
+  annotations.forEach(function(a){
+    var d=document.createElement('div');
+    d.className='ann-dot'+(a.id===activeId?' active':'');
+    d.textContent=a.num;
+    d.style.left=(a.x_pct*iw)+'px';
+    d.style.top=(a.y_pct*ih)+'px';
+    d.onclick=function(e){e.stopPropagation();pick(a.id);};
+    w.appendChild(d);
+  });
+}
+function pick(id){
+  activeId=id;
+  renderDots();
+  var a=annotations.find(function(x){return x.id===id});
+  if(!a)return;
+  document.getElementById('empty-hint').style.display='none';
+  var c=document.getElementById('desc-card');
+  c.style.display='block';
+  var rows='';
+  if(a.description)rows+=row('설명',a.description);
+  if(a.interaction)rows+=row('인터랙션',a.interaction);
+  if(a.status)rows+=row('상태/조건',a.status);
+  c.innerHTML='<div class="d-num">'+a.num+'</div><div class="d-title">'+esc(a.label)+'</div><div class="d-div"></div>'+rows;
+}
+function row(l,v){return '<div class="d-sec"><div class="d-lbl">'+l+'</div><div class="d-val">'+esc(v)+'</div></div>';}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+window.addEventListener('resize',renderDots);
+init();
+<\/script>
+</body>
+</html>`;
+}
+
+// ─── All pages export ─────────────────────────────────────────
+function buildAllPagesHTML(pgList) {
+  const pagesData = JSON.stringify(pgList.map(pg => ({
+    id: pg.id, name: pg.name,
+    imageSrc: pg.imageSrc,
+    annotations: pg.annotations
+  })));
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>전체 기획서</title>
+${exportCSS(true)}
+</head>
+<body>
+<header>
+  <div class="logo">📋 기획서</div>
+  <div class="page-tabs" id="page-tabs"></div>
+  <div class="badge" id="ann-badge"></div>
+</header>
+<main>
+  <div id="canvas-wrap">
+    <div id="image-wrapper">
+      <img id="wf-img" src="" alt="wireframe">
+    </div>
+  </div>
+  <div id="desc-panel">
+    <div class="desc-hdr">설명</div>
+    <div id="desc-body">
+      <div class="empty-hint" id="empty-hint"><div class="ei">🖱</div><p>번호를 클릭하면<br>설명이 표시됩니다</p></div>
+      <div id="desc-card" style="display:none"></div>
+    </div>
+  </div>
+</main>
+<script>
+var pages=${pagesData};
+var curIdx=0;
+var activeId=null;
+function init(){renderTabs();loadPage(0);}
+function renderTabs(){
+  document.getElementById('page-tabs').innerHTML=pages.map(function(pg,i){
+    return '<button class="page-tab'+(i===curIdx?' active':'')+'" onclick="loadPage('+i+')">'+esc(pg.name)+'</button>';
+  }).join('');
+}
+function loadPage(idx){
+  curIdx=idx;activeId=null;
+  renderTabs();
+  var pg=pages[idx];
+  var img=document.getElementById('wf-img');
+  img.src=pg.imageSrc;
+  img.onload=function(){renderDots(pg.annotations);};
+  if(img.complete&&img.naturalWidth)renderDots(pg.annotations);
+  document.getElementById('ann-badge').textContent=pg.annotations.length+'개 주석';
+  clearDesc();
+}
+function renderDots(anns){
+  var w=document.getElementById('image-wrapper');
+  w.querySelectorAll('.ann-dot').forEach(function(d){d.remove()});
+  var img=document.getElementById('wf-img');
+  var iw=img.offsetWidth,ih=img.offsetHeight;
+  anns.forEach(function(a){
+    var d=document.createElement('div');
+    d.className='ann-dot'+(a.id===activeId?' active':'');
+    d.textContent=a.num;
+    d.style.left=(a.x_pct*iw)+'px';
+    d.style.top=(a.y_pct*ih)+'px';
+    d.onclick=function(e){e.stopPropagation();pick(a.id);};
+    w.appendChild(d);
+  });
+}
+function pick(id){
+  activeId=id;
+  var pg=pages[curIdx];
+  renderDots(pg.annotations);
+  var a=pg.annotations.find(function(x){return x.id===id});
+  if(!a)return;
+  document.getElementById('empty-hint').style.display='none';
+  var c=document.getElementById('desc-card');
+  c.style.display='block';
+  var rows='';
+  if(a.description)rows+=row('설명',a.description);
+  if(a.interaction)rows+=row('인터랙션',a.interaction);
+  if(a.status)rows+=row('상태/조건',a.status);
+  c.innerHTML='<div class="d-num">'+a.num+'</div><div class="d-title">'+esc(a.label)+'</div><div class="d-div"></div>'+rows;
+}
+function clearDesc(){
+  document.getElementById('empty-hint').style.display='';
+  var c=document.getElementById('desc-card');
+  c.style.display='none';c.innerHTML='';
+}
+function row(l,v){return '<div class="d-sec"><div class="d-lbl">'+l+'</div><div class="d-val">'+esc(v)+'</div></div>';}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+window.addEventListener('resize',function(){renderDots(pages[curIdx].annotations);});
+init();
+<\/script>
+</body>
+</html>`;
+}
+
+// ─────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────
+function escHtml(str){ return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escHtmlExport(str){ return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>el.classList.remove('show'),2400);
+}
+
+document.getElementById('export-modal').addEventListener('click',function(e){ if(e.target===this) closeExportModal(); });
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+(function(){
+  const pg = makePage('Page 1');
+  pages.push(pg);
+  currentPageId = pg.id;
+  renderPagesList();
+  loadCurrentPage();
+})();
+</script>
+</body>
+</html>
